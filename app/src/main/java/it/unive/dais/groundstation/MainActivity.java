@@ -788,8 +788,9 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
             send(payload);
             String str_bytes = new String(bytes);
 
-            /*Integer aux = Character.getNumericValue(str_bytes.charAt(0));
-            //String aux = str_bytes.substring(0,1);
+            // those are needed if you are a robot!
+            /*
+            Integer aux = Character.getNumericValue(str_bytes.charAt(0));
             if((aux >= 0 && aux <=6) && ((str_bytes.charAt(1)=='S'))){
                 if(aux == 0 || aux == 1) {
                     logD(
@@ -807,14 +808,26 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
                     // altrimenti lo ignoriamo
                     return;
                 }
-            }*/
+            }
+
+
+                if (str_bytes.toLowerCase().contains("recupero")) {
+                    logD(
+                            String.format(
+                                    "Recovery message: %s",
+                                    str_bytes));
+                    // messaggio del protocollo passivo
+                    return;
+                }
+              */
 
 
             if (str_bytes.toLowerCase().contains("benvenuto")) {
                 logD(
                         String.format(
-                                "BYTE received %s from endpoint %s",
-                                str_bytes, endpoint.getName()));
+                                "Welcome message: %s",
+                                str_bytes));
+                // messaggio di benvenuto
                 return;
             }
 
