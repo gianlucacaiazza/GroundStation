@@ -8,9 +8,11 @@
     <string name="toast_disconnected">Disconnected from %s</string>
 
     <string name="status_unknown">Please wait</string>
-    <string name="status_connected">Connected\nHold any of the volume keys to talk</string>
+    <string name="status_connected">Connected</string>
 
     <string name="status_advertising">Advertising</string>
-    <string name="status_discovering">Premi il bottone per fare Advertisement.</string>
+    <string name="status_discovering">Press the button to start Advertisement.</string>
 
+
+    <string name="secret_key">Encrypt Key</string>
 </resources>

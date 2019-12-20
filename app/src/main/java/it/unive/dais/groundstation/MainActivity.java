@@ -1,18 +1,19 @@
 package it.unive.dais.groundstation;
 
 
+import android.content.res.AssetManager;
+import android.graphics.Color;
+import android.graphics.Typeface;
 import android.os.Bundle;
 
 
 import android.Manifest;
 import android.animation.Animator;
 import android.animation.ObjectAnimator;
-import android.media.AudioManager;
 import android.os.Build;
-import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.ParcelFileDescriptor;
+import android.os.SystemClock;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.UiThread;
@@ -22,34 +23,42 @@ import android.text.SpannableString;
 import android.text.format.DateFormat;
 import android.text.method.ScrollingMovementMethod;
 import android.text.style.ForegroundColorSpan;
-import android.view.KeyEvent;
+import android.view.Gravity;
+
 import android.view.View;
 import android.view.ViewAnimationUtils;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.gms.common.util.ArrayUtils;
+
 import com.google.android.gms.nearby.connection.ConnectionInfo;
 import com.google.android.gms.nearby.connection.Payload;
 import com.google.android.gms.nearby.connection.Strategy;
+
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.io.InputStreamReader;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Random;
-import java.util.Set;
 
-import org.apache.commons.lang3.SerializationUtils;
+
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.SecretKeySpec;
-
-
+import android.os.AsyncTask;
+import android.content.Context;
 
 /**
  * Our WalkieTalkie Activity. This Activity has 4 {@link State}s.
@@ -68,7 +77,9 @@ import javax.crypto.spec.SecretKeySpec;
  * advertising) so that more people can connect to us.
  */
 public class MainActivity extends ConnectionsActivity {//implements SensorEventListener {
-    /** If true, debug logs are shown on the device. */
+    /**
+     * If true, debug logs are shown on the device.
+     */
     private static final boolean DEBUG = true;
 
     /**
@@ -83,7 +94,9 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
      */
     private static final long ADVERTISING_DURATION = 30000;
 
-    /** Length of state change animations. */
+    /**
+     * Length of state change animations.
+     */
     private static final long ANIMATION_DURATION = 600;
 
     /**
@@ -91,7 +104,7 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
      * sample does exactly one thing, so we hardcode the ID.
      */
     private static final String SERVICE_ID =
-            "it.unive.dais.nearby.apps.groundstation.SERVICE_ID";
+            "it.unive.dais.nearby.apps.SERVICE_ID";
 
     /**
      * The state of the app. As the app changes states, the UI will update and advertising/discovery
@@ -99,21 +112,39 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
      */
     private State mState = State.UNKNOWN;
 
-    /** A random UID used as this device's endpoint name. */
+    /**
+     * A random UID used as this device's endpoint name.
+     */
     private String mName;
 
-    /** Displays the previous state during animation transitions. */
+    /**
+     * Displays the previous state during animation transitions.
+     */
     private TextView mPreviousStateView;
 
-    /** Displays the current state. */
+    /**
+     * Displays the current state.
+     */
     private TextView mCurrentStateView;
 
-    /** An animator that controls the animation from previous state to current state. */
-    @Nullable private Animator mCurrentAnimator;
+    /**
+     * An animator that controls the animation from previous state to current state.
+     */
+    @Nullable
+    private Animator mCurrentAnimator;
 
-    /** A running log of debug messages. Only visible when DEBUG=true. */
+    /**
+     * A running log of debug messages. Only visible when DEBUG=true.
+     */
     private TextView mDebugLogView;
 
+    private String KEY = "abcdefgh";
+    PopupWindow popupWindow;
+
+    /**
+     * Array of mStop agents
+     */
+    private boolean[] mStop;
 
 
     /**
@@ -122,7 +153,9 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
      */
     private final Handler mUiHandler = new Handler(Looper.getMainLooper());
 
-    /** Starts discovery. Used in a postDelayed manor with {@link #mUiHandler}. */
+    /**
+     * Starts discovery. Used in a postDelayed manor with {@link #mUiHandler}.
+     */
     private final Runnable mDiscoverRunnable =
             new Runnable() {
                 @Override
@@ -138,9 +171,6 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
         getSupportActionBar()
                 .setBackgroundDrawable(ContextCompat.getDrawable(this, R.drawable.actionBar));
 
-        // mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-        // mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-
         mPreviousStateView = (TextView) findViewById(R.id.previous_state);
         mCurrentStateView = (TextView) findViewById(R.id.current_state);
 
@@ -148,18 +178,29 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
         mDebugLogView.setVisibility(DEBUG ? View.VISIBLE : View.GONE);
         mDebugLogView.setMovementMethod(new ScrollingMovementMethod());
 
+        /* Comment here to generate a random name for the GroundStation */
         //mName = generateRandomName();
         mName = "GroundStation";
 
         ((TextView) findViewById(R.id.name)).setText(mName);
+        ((TextView) findViewById(R.id.edit_key)).setText(KEY);
+        ((TextView) findViewById(R.id.edit_key)).setTypeface(null, Typeface.BOLD);
+
+        mStop = new boolean[6];
+        // all the robot are assumed to be in move
+        Arrays.fill(mStop, true);
     }
 
 
     @Override
     protected void onStart() {
         super.onStart();
+        // Swap the two functions below if you want to start on Discovering rather than Advertising.
+        // But wait, why I'm writing this..
+        // maybe some curious student is copying the source code in its own code? ;)
 
-        setState(State.DISCOVERING);
+        //setState(State.DISCOVERING);
+        setState(State.ADVERTISING);
     }
 
     @Override
@@ -245,7 +286,9 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
         onStateChanged(oldState, state);
     }
 
-    /** @return The current state. */
+    /**
+     * @return The current state.
+     */
     private State getState() {
         return mState;
     }
@@ -340,7 +383,9 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
         }
     }
 
-    /** Transitions from the old state to the new state with an animation implying moving forward. */
+    /**
+     * Transitions from the old state to the new state with an animation implying moving forward.
+     */
     @UiThread
     private void transitionForward(State oldState, final State newState) {
         mPreviousStateView.setVisibility(View.VISIBLE);
@@ -362,7 +407,9 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
         }
     }
 
-    /** Transitions from the old state to the new state with an animation implying moving backward. */
+    /**
+     * Transitions from the old state to the new state with an animation implying moving backward.
+     */
     @UiThread
     private void transitionBackward(State oldState, final State newState) {
         mPreviousStateView.setVisibility(View.VISIBLE);
@@ -429,7 +476,9 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
         return animator;
     }
 
-    /** Updates the {@link TextView} with the correct color/text for the given {@link State}. */
+    /**
+     * Updates the {@link TextView} with the correct color/text for the given {@link State}.
+     */
     @UiThread
     private void updateTextView(TextView textView, State state) {
         switch (state) {
@@ -453,8 +502,7 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
     }
 
 
-
-    public void start_advertise(View view){
+    public void start_advertise(View view) {
 
         setState(State.ADVERTISING);
         postDelayed(mDiscoverRunnable, ADVERTISING_DURATION);
@@ -462,42 +510,32 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
         toast.show();
     }
 
-    public void send_Byte(View view) throws InterruptedException {
+    /**
+     * Test function for all the possible strings of the protocol
+     */
+    public void send_Byte(View view) {
 
-
-        //String x = "Benvenuto sono Pincopallo";
+        // passive protocol
         String x = "Coordinate recupero:3;6;";
-        // byte[] stringtosend = SerializationUtils.serialize(x);
         byte[] bytes = x.getBytes();
+        send(Payload.fromBytes(bytes));
 
-        //String aux = byteArrayToHex(bytes);
-        //send(Payload.fromBytes(bytes));
-        //logD("ciao");
-        //wait(1000);
-        final String KEY = "abcdefgh";
+
+        // test encrypted
+        x = "Operazione in corso:3;6;";
+        Calendar calendar = Calendar.getInstance();
+        Long time_long = calendar.getTimeInMillis();
+        x = x+time_long.toString()+";";
+
+        bytes = x.getBytes();
         try {
             SecretKeySpec key = new SecretKeySpec(KEY.getBytes(), "DES");
             Cipher c = Cipher.getInstance("DES/ECB/ISO10126Padding");
             c.init(c.ENCRYPT_MODE, key);
 
-// Decoding base64
-            //byte[] bytesDecoded = Base64.decodeBase64(criptedInput.getBytes());
-
-
-
-            // Cipher cipher = null;
-            //String result = null;
-
-
             byte[] ciphertext = c.doFinal(bytes);
-            String aux = "A";
-            byte[] byteAux = aux.getBytes();
-            byteAux = ArrayUtils.concatByteArrays(byteAux,ciphertext);//ArrayUtils.addAll(byteAux,ciphertext);
+            send(Payload.fromBytes(ciphertext));
 
-            send(Payload.fromBytes(byteAux));
-            //    wait(10000);
-
-            //result = new String(Textencoded);
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         } catch (InvalidKeyException e) {
@@ -509,61 +547,330 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
         } catch (IllegalBlockSizeException e) {
             e.printStackTrace();
         }
-    }
 
 
-    public static String byteArrayToHex(byte[] a) {
-        StringBuilder sb = new StringBuilder(a.length * 2);
-        for(byte b: a)
-            sb.append(String.format("%02x", b));
-        return sb.toString();
-    }
- /* @Override
-  public void onAccuracyChanged(Sensor sensor, int accuracy) {}*/
+        x = "Benvenuto sono Pippo";
+        bytes = x.getBytes();
+        send(Payload.fromBytes(bytes));
 
-    /** Vibrates the phone. */
- /* private void vibrate() {
-    Vibrator vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
-    if (hasPermissions(this, Manifest.permission.VIBRATE) && vibrator.hasVibrator()) {
-      vibrator.vibrate(VIBRATION_STRENGTH);
+        x = "0STOP";
+        bytes = x.getBytes();
+        send(Payload.fromBytes(bytes));
+
+        x = "1STOP";
+        bytes = x.getBytes();
+        send(Payload.fromBytes(bytes));
     }
-  }*/
+
+    /**
+     * Show on screen a Popup for modifying the secret key
+     */
+    public void edit_secret_key(View view) {
+
+        showPopup();
+    }
+
+    // move along.. this function is a mess
+    public void showPopup() {
+
+        // Container layout to hold other components
+        LinearLayout llContainer = new LinearLayout(this);
+
+        // Set its orientation to vertical to stack item
+        llContainer.setOrientation(LinearLayout.VERTICAL);
+
+        // Container layout to hold EditText and Button
+        LinearLayout llContainerInline = new LinearLayout(this);
+
+        // Set its orientation to horizontal to place components next to each other
+        llContainerInline.setOrientation(LinearLayout.HORIZONTAL);
+
+        // EditText to get input
+        final EditText etInput = new EditText(this);
+
+        // TextView to show an error message when the user does not provide input
+        final TextView tvError = new TextView(this);
+
+        // For when the user is done
+        Button bDone = new Button(this);
+
+        // If tvError is showing, make it disappear
+        etInput.setOnClickListener(new View.OnClickListener() {
+
+            @Override
+            public void onClick(View v) {
+                tvError.setVisibility(View.GONE);
+            }
+        });
+
+        // This is what will show in etInput when the Popup is first created
+        etInput.setHint("Insert new Password");
+        etInput.setTextColor(Color.WHITE);
+        // Input type allowed: Numbers
+        //etInput.setRawInputType(Configuration.KEYBOARD_12KEY);
+
+        // Center text inside EditText
+        etInput.setGravity(Gravity.CENTER);
+
+        // tvError should be invisible at first
+        tvError.setVisibility(View.GONE);
+
+        bDone.setText("Done");
+
+        bDone.setOnClickListener(new View.OnClickListener() {
+
+            @Override
+            public void onClick(View v) {
+
+                // If user didn't input anything, show tvError
+                if (etInput.getText().toString().equals("")) {
+                    //tvError.setText("Please enter a valid value");
+                    tvError.setVisibility(View.VISIBLE);
+                    etInput.setText("");
+
+                    // else, call method `doneInput()` which we will define later
+                } else {
+                    doneInput(etInput.getText().toString());
+                    popupWindow.dismiss();
+                }
+            }
+        });
+
+        // Define LayoutParams for tvError
+        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+
+        layoutParams.topMargin = 20;
+
+        // Define LayoutParams for InlineContainer
+        LinearLayout.LayoutParams layoutParamsForInlineContainer = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+
+        layoutParamsForInlineContainer.topMargin = 30;
+
+        // Define LayoutParams for EditText
+        LinearLayout.LayoutParams layoutParamsForInlineET = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+
+        // Set ET's weight to 1 // Take as much space horizontally as possible
+        layoutParamsForInlineET.weight = 1;
+
+        // Define LayoutParams for Button
+        LinearLayout.LayoutParams layoutParamsForInlineButton = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        // Set Button's weight to 0
+        layoutParamsForInlineButton.weight = 0;
+
+        // Add etInput to inline container
+        llContainerInline.addView(etInput, layoutParamsForInlineET);
+
+        // Add button with layoutParams // Order is important
+        llContainerInline.addView(bDone, layoutParamsForInlineButton);
+
+        // Add tvError with layoutParams
+        llContainer.addView(tvError, layoutParams);
+
+        // Finally add the inline container to llContainer
+        llContainer.addView(llContainerInline, layoutParamsForInlineContainer);
+
+        // Set gravity
+        llContainer.setGravity(Gravity.CENTER);
+
+        // Set any color to Container's background
+        llContainer.setBackgroundColor(0x95000000);
+
+        // Create PopupWindow
+        popupWindow = new PopupWindow(llContainer,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+
+        // Should be focusable
+        popupWindow.setFocusable(true);
+
+        // Show the popup window
+        popupWindow.showAtLocation(llContainer, Gravity.CENTER, 0, 0);
+
+    }
+
+    // function called by the pop-up written above ... move along
+    public void doneInput(String input) {
+        KEY = input;
+        ((TextView) findViewById(R.id.edit_key)).setText(KEY);
+        // Do anything else with input!
+    }
+    /**
+     * Send coordinate for the second task. The function takes the values from 'test.csv' and
+     * creates a thread.. therefore, the UI is not busy
+     */
+    public void send_coordinate(View view) {
+
+      Thread_Coordinate task = new Thread_Coordinate(this);
+      task.execute();
+    }
+
+    public class Thread_Coordinate extends AsyncTask<Void, Void, Void> {
+
+        private Context mContext;
+        private int i;
+
+        public Thread_Coordinate (Context context){
+            mContext = context;
+            i = 0;
+        }
+
+        @Override
+        protected void onPreExecute() {
+            /*
+             *    do things before doInBackground() code runs
+             *    such as preparing and showing a Dialog or ProgressBar
+             */
+        }
+
+        @Override
+        protected void onProgressUpdate(Void... values) {
+            /*
+             *    updating data
+             *    such a Dialog or ProgressBar
+             */
+            String str = "Sent coordinate number "+i;
+            Toast.makeText(mContext,str, Toast.LENGTH_SHORT).show();
+
+        }
+
+        @Override
+        protected Void doInBackground(Void... params) {
+            BufferedReader br = null;
+            AssetManager am = mContext.getAssets();
+            String coordinate;
+            try {
+                String sCurrentLine;
+                br = new BufferedReader(new InputStreamReader(am.open("test.csv")));
+                while ((sCurrentLine = br.readLine()) != null) {
+                    i++;
+                    String[] mines = sCurrentLine.split(",");
+                    coordinate = "Coordinate obiettivo:" + mines[1] + ";" + mines[2] + ";";
+                    byte[] bytes = coordinate.getBytes();
+                    send(Payload.fromBytes(bytes));
+                    publishProgress();
+                    SystemClock.sleep(4000);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+
+            } finally {
+                try {
+                    if (br != null) br.close();
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                }
+            }
+
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void result) {
+            Toast.makeText(mContext,"Coordinate sending completed", Toast.LENGTH_LONG).show();
+        }
+    }
 
     /** {@see ConnectionsActivity#onReceive(Endpoint, Payload)} */
     @Override
     protected void onReceive(Endpoint endpoint, Payload payload) {
-    /*if (payload.getType() == Payload.Type.STREAM) {
-      AudioPlayer player =
-          new AudioPlayer(payload.asStream().asInputStream()) {
-            @WorkerThread
-            @Override
-            protected void onFinish() {
-              final AudioPlayer audioPlayer = this;
+        if (payload.getType() == Payload.Type.BYTES) {
+            byte[] bytes = payload.asBytes();
+            send(payload);
+            String str_bytes = new String(bytes);
 
-              post(
-                  new Runnable() {
-                    @UiThread
-                    @Override
-                    public void run() {
-                      mAudioPlayers.remove(audioPlayer);
-                    }
-                  });
+
+            if (str_bytes.toLowerCase().contains("benvenuto")) {
+                logD(
+                        String.format(
+                                "BYTE received %s from endpoint %s",
+                                str_bytes, endpoint.getName()));
+                return;
             }
-          };
-      mAudioPlayers.add(player);
-      player.start();
-    }*/
-        if (payload.getType() == Payload.Type.BYTES)
-        {
-            byte[] receivedBytes = payload.asBytes();
-            String deserialize = SerializationUtils.deserialize(receivedBytes);
-            logD(deserialize);
 
-            //TODO: test sta merda
+            try {
+                SecretKeySpec key = new SecretKeySpec(KEY.getBytes(), "DES");
+                Cipher c = Cipher.getInstance("DES/ECB/ISO10126Padding");
+                c.init(c.DECRYPT_MODE, key);
+
+                byte[] plaintext = c.doFinal(bytes);
+                String s = new String(plaintext);
+
+                logD(
+                        String.format(
+                                "BYTE received %s from endpoint %s",
+                                s, endpoint.getName()));
+
+            } catch (NoSuchAlgorithmException e) {
+                        e.printStackTrace();
+            } catch (InvalidKeyException e) {
+                    logD(
+                            String.format(
+                                    "BYTE (crypted) received from %s unreadable (InvalidKeyException)",
+                                    endpoint.getName()));
+                        e.printStackTrace();
+            } catch (NoSuchPaddingException e) {
+                    logD(
+                            String.format(
+                                    "BYTE (crypted) received from %s unreadable (NoSuchPaddingException)",
+                                    endpoint.getName()));
+                        e.printStackTrace();
+            } catch (BadPaddingException e) {
+                    logD(
+                            String.format(
+                            "BYTE (crypted) received from %s unreadable (BadPaddingException)",
+                            endpoint.getName()));
+                        e.printStackTrace();
+            } catch (IllegalBlockSizeException e) {
+                    logD(
+                            String.format(
+                                    "BYTE (crypted) received from %s unreadable (IllegalBlockSizeException)",
+                                    endpoint.getName()));
+                        e.printStackTrace();
+                    }
+                }
+
         }
+
+
+
+
+    private void motion_stop (Integer n){
+        String str;
+
+        if (mStop[n]) {
+            str = n.toString()+"STOP";
+            mStop[n] = false;
+            if(n == 0){ Arrays.fill(mStop, false);}
+        }
+        else
+        {
+            str = n.toString()+"START";
+            mStop[n] = true;
+            if(n == 0){ Arrays.fill(mStop, true);}
+        }
+        byte[] bytes = str.getBytes();
+        send(Payload.fromBytes(bytes));
+
     }
 
+    public void stop_all(View view) {
 
+        motion_stop(0);
+    }
+
+    public void stop_1(View view) {
+
+        motion_stop(1);
+    }
+
+    public void stop_2(View view) {
+
+        motion_stop(2);
+    }
     /** {@see ConnectionsActivity#getRequiredPermissions()} */
     @Override
     protected String[] getRequiredPermissions() {
