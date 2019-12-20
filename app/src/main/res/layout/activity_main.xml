@@ -92,8 +92,9 @@
             android:id="@+id/button_Start0"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:onClick="stop_all"
+            android:onClick="stop_stop_click"
             android:text="Start/Stop All"
+            android:tag="0"
             android:layout_gravity="top|right"
             />
 
@@ -101,8 +102,9 @@
             android:id="@+id/button_Start1"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:onClick="stop_1"
+            android:onClick="stop_stop_click"
             android:text="Start/Stop 1"
+            android:tag="1"
             android:layout_gravity="top|right"
             />
 
@@ -110,8 +112,9 @@
             android:id="@+id/button_Start2"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:onClick="stop_2"
+            android:onClick="stop_stop_click"
             android:text="Start/Stop 2"
+            android:tag="2"
             android:layout_gravity="top|right"
             />
     </LinearLayout>

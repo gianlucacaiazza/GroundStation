@@ -61,7 +61,7 @@ import android.os.AsyncTask;
 import android.content.Context;
 
 /**
- * Our WalkieTalkie Activity. This Activity has 4 {@link State}s.
+ * Our GroundStation Activity. This Activity has 4 {@link State}s.
  *
  * <p>{@link State#UNKNOWN}: We cannot do anything while we're in this state. The app is likely in
  * the background.
@@ -191,14 +191,19 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
         Arrays.fill(mStop, true);
     }
 
+    private static String generateRandomName() {
+        String name = "";
+        Random random = new Random();
+        for (int i = 0; i < 5; i++) {
+            name += random.nextInt(10);
+        }
+        return name;
+    }
 
     @Override
     protected void onStart() {
         super.onStart();
         // Swap the two functions below if you want to start on Discovering rather than Advertising.
-        // But wait, why I'm writing this..
-        // maybe some curious student is copying the source code in its own code? ;)
-
         //setState(State.DISCOVERING);
         setState(State.ADVERTISING);
     }
@@ -522,7 +527,7 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
 
 
         // test encrypted
-        x = "Operazione in corso:3;6;";
+        x = "Operazione in corso:4;8;";
         Calendar calendar = Calendar.getInstance();
         Long time_long = calendar.getTimeInMillis();
         x = x+time_long.toString()+";";
@@ -779,8 +784,30 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
     protected void onReceive(Endpoint endpoint, Payload payload) {
         if (payload.getType() == Payload.Type.BYTES) {
             byte[] bytes = payload.asBytes();
+            // comment this send if we are not the Groundstation anymore
             send(payload);
             String str_bytes = new String(bytes);
+
+            /*Integer aux = Character.getNumericValue(str_bytes.charAt(0));
+            //String aux = str_bytes.substring(0,1);
+            if((aux >= 0 && aux <=6) && ((str_bytes.charAt(1)=='S'))){
+                if(aux == 0 || aux == 1) {
+                    logD(
+                            String.format(
+                                    "STOP/START message intercepted %s",
+                                    str_bytes));
+                    // il messaggio è per noi!
+                    return;
+                }
+                else {
+                    logD(
+                            String.format(
+                                    "STOP/START message ignored %s",
+                                    str_bytes));
+                    // altrimenti lo ignoriamo
+                    return;
+                }
+            }*/
 
 
             if (str_bytes.toLowerCase().contains("benvenuto")) {
@@ -857,20 +884,11 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
 
     }
 
-    public void stop_all(View view) {
-
-        motion_stop(0);
+    public void stop_stop_click(View view) {
+        Integer value =  Integer.valueOf((view.getTag().toString()));
+        motion_stop(value);
     }
 
-    public void stop_1(View view) {
-
-        motion_stop(1);
-    }
-
-    public void stop_2(View view) {
-
-        motion_stop(2);
-    }
     /** {@see ConnectionsActivity#getRequiredPermissions()} */
     @Override
     protected String[] getRequiredPermissions() {
