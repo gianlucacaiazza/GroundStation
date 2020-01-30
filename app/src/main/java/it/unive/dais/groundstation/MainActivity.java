@@ -811,7 +811,7 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
             }
 
 
-                if (str_bytes.toLowerCase().contains("recupero")) {
+                if (str_bytes.toLowerCase().contains("obiettivo")) {
                     logD(
                             String.format(
                                     "Recovery message: %s",
@@ -821,6 +821,13 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
                 }
               */
 
+            if (str_bytes.toLowerCase().contains("recupero")) {
+                logD(
+                        String.format(
+                                "Recovery message: %s",
+                                str_bytes));
+                // messaggio del protocollo passivo (broadcast) terza prova
+            }
 
             if (str_bytes.toLowerCase().contains("benvenuto")) {
                 logD(
