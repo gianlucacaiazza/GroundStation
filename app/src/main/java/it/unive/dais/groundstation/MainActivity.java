@@ -827,6 +827,7 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
                                 "Recovery message: %s",
                                 str_bytes));
                 // messaggio del protocollo passivo (broadcast) terza prova
+                return;
             }
 
             if (str_bytes.toLowerCase().contains("benvenuto")) {

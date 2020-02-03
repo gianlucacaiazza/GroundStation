@@ -23,6 +23,7 @@ Il nome di default del nodo può essere settato attraverso la variabile `mName` 
 1. Inserire un nome alternativo in `mName`
 2. Opzionale: modificare lo stato di avvio nella funzione `onStart` da **ADVERTISING** a **DISCOVERING**
 3. Commentare `send(payload)` (l'invio automatico dei messaggi ricevuti) nella funzione `onReceive` .
+4. Eliminare i commenti per il parsing dei messaggi in ingresso (da riga 791 a 822)
 
 `Il nome associato alla variabile mName (endpoint) è visualizzato nell'angolo destro della barra superiore`
 
