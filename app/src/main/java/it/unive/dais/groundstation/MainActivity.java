@@ -795,7 +795,7 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
                 if(aux == 0 || aux == 1) {
                     logD(
                             String.format(
-                                    "STOP/START message intercepted %s",
+                                    "STOP/RESUME message intercepted %s",
                                     str_bytes));
                     // il messaggio è per noi!
                     return;
@@ -803,7 +803,7 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
                 else {
                     logD(
                             String.format(
-                                    "STOP/START message ignored %s",
+                                    "STOP/RESUME message ignored %s",
                                     str_bytes));
                     // altrimenti lo ignoriamo
                     return;
@@ -896,7 +896,7 @@ public class MainActivity extends ConnectionsActivity {//implements SensorEventL
         }
         else
         {
-            str = n.toString()+"START";
+            str = n.toString()+"RESUME";
             mStop[n] = true;
             if(n == 0){ Arrays.fill(mStop, true);}
         }
